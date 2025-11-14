@@ -1,0 +1,63 @@
+from multiprocessing import Pool
+import numpy as np
+
+# ----- Cellular Automaton Rule (Rule-30 Example) -----
+def rule_30(left, center, right):
+    """
+    Rule 30: A classic elementary cellular automaton.
+    """
+    pattern = (left << 2) | (center << 1) | right
+    return [0, 1, 1, 1, 1, 0, 0, 0][pattern]
+
+# ----- Worker Function for Parallel Computation -----
+def update_chunk(args):
+    arr, start, end = args
+    n = len(arr)
+    new_chunk = []
+
+    for i in range(start, end):
+        left   = arr[(i - 1) % n]
+        center = arr[i]
+        right  = arr[(i + 1) % n]
+        new_chunk.append(rule_30(left, center, right))
+    
+    return (start, new_chunk)
+
+# ----- Main Parallel Cellular Algorithm -----
+def parallel_cellular_automaton(initial_array, steps=20, workers=4):
+    arr = initial_array.copy()
+    n = len(arr)
+
+    for step in range(steps):
+        chunk_size = n // workers
+        tasks = []
+
+        for w in range(workers):
+            start = w * chunk_size
+            end = (w + 1) * chunk_size if w < workers - 1 else n
+            tasks.append((arr, start, end))
+
+        with Pool(workers) as pool:
+            results = pool.map(update_chunk, tasks)
+
+        new_arr = arr.copy()
+        for start, new_chunk in results:
+            new_arr[start:start + len(new_chunk)] = new_chunk
+        
+        arr = new_arr
+        print(f"Step {step+1}: {arr}")
+
+    return arr
+
+
+# ----- Run the Parallel Algorithm -----
+if __name__ == "__main__":
+    size = 40
+    initial = np.zeros(size, dtype=int)
+    initial[size // 2] = 1   # single live cell in the middle
+
+    print("Initial State:")
+    print(initial)
+    print("\nEvolution:\n")
+
+    final_state = parallel_cellular_automaton(initial, steps=15, workers=4)
